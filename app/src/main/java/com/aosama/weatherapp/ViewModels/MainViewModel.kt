@@ -10,6 +10,7 @@ import com.google.gson.JsonParseException
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.Dispatchers
 import retrofit2.HttpException
+import java.lang.Exception
 import java.util.*
 
 class MainViewModel(private val apiService: ApiService) : ViewModel() {
@@ -42,6 +43,8 @@ class MainViewModel(private val apiService: ApiService) : ViewModel() {
             } else {
                 emit(Resource.error(data = null, message = exception.message ?: "Error occured"))
             }
+        } catch (e: Exception) {
+            emit(Resource.error(data = null, message = "no internet connection"))
         }
     }
 }
