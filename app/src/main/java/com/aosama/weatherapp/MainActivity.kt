@@ -5,13 +5,11 @@ import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.IntentSender
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Bundle
 import android.os.Looper
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MenuItem.*
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
@@ -73,9 +71,9 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+
         requestPermission()
-
-
+        
     }
 
     private fun setupViewModel() {
@@ -87,14 +85,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun getTempAPi(q: String = "", lat: String = "", lon: String = "") {
 
-        val mapLogin = HashMap<String, String>()
-        mapLogin["appid"] = MyConstants.ConfigApi.WEATHER_API_KEY
-        mapLogin["lat"] = lat
-        mapLogin["lon"] = lon
-        mapLogin["q"] = q
-        mapLogin["units"] = "metric"
+        val map = HashMap<String, String>()
+        map["appid"] = MyConstants.ConfigApi.WEATHER_API_KEY
+        map["lat"] = lat
+        map["lon"] = lon
+        map["q"] = q
+        map["units"] = "metric"
 
-        viewModel.getCurrentWeather(mapLogin).observe(this, Observer { it ->
+        viewModel.getCurrentWeather(map).observe(this, Observer { it ->
             when (it.status) {
                 Status.SUCCESS -> {
                     showProgress(false)
