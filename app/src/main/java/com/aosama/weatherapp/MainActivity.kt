@@ -7,10 +7,12 @@ import android.content.IntentSender
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
+import android.util.Log
 import android.view.Menu
 import android.view.MenuItem
 import android.view.MenuItem.*
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityCompat
@@ -22,14 +24,16 @@ import com.aosama.weatherapp.ViewModels.ViewModelFactory
 import com.aosama.weatherapp.api.ApiClient
 import com.aosama.weatherapp.api.ApiService
 import com.aosama.weatherapp.models.WeatherResponseModel
-import com.aosama.weatherapp.utils.MyConstants
-import com.aosama.weatherapp.utils.MyUtils
-import com.aosama.weatherapp.utils.Resource
-import com.aosama.weatherapp.utils.Status
+import com.aosama.weatherapp.utils.*
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.*
 
@@ -44,6 +48,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var dialog: Dialog
     private lateinit var fusedLocationClient: FusedLocationProviderClient
     private lateinit var locationCallback: LocationCallback
+    val model: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,8 +77,40 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        requestPermission()
-        
+//        requestPermission()
+
+        getTempAPi()
+        model.foo2().observe(this, Observer {
+            tvTemp2.text = it.toString()
+        })
+
+        val map = HashMap<String, String>()
+        map["appid"] = MyConstants.ConfigApi.WEATHER_API_KEY
+        map["lat"] = ""
+        map["lon"] = ""
+        map["q"] = "cairo"
+        map["units"] = "metric"
+
+        GlobalScope.launch {
+            viewModel.getCurrentWeatherFlow(map).collect { value ->
+                withContext(Dispatchers.Main) {
+                    when (value.status) {
+                        Status.SUCCESS -> {
+                            showProgress(false)
+                            updateUi(value.data)
+                        }
+                        Status.LOADING -> {
+                            showProgress(true)
+                        }
+                        Status.ERROR -> Toast.makeText(
+                            this@MainActivity,
+                            value.message,
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun setupViewModel() {
@@ -83,7 +120,8 @@ class MainActivity : AppCompatActivity() {
         ).get(MainViewModel::class.java)
     }
 
-    private fun getTempAPi(q: String = "", lat: String = "", lon: String = "") {
+    @SuppressLint("LogNotTimber")
+    private fun getTempAPi(q: String = "cairo", lat: String = "", lon: String = "") {
 
         val map = HashMap<String, String>()
         map["appid"] = MyConstants.ConfigApi.WEATHER_API_KEY
@@ -92,39 +130,31 @@ class MainActivity : AppCompatActivity() {
         map["q"] = q
         map["units"] = "metric"
 
-        viewModel.getCurrentWeather(map).observe(this, Observer { it ->
-            when (it.status) {
-                Status.SUCCESS -> {
+        viewModel.getCurrentWeather(map).observe(this, {
+            when (it) {
+                is Success<*> -> {
                     showProgress(false)
-                    when (it.data?.cod) {
-                        MyConstants.Status.SUCCESS -> {
-                            updateUi(it)
-                        }
-                        else -> {
-                            Toast.makeText(this, it?.message, Toast.LENGTH_LONG).show()
-                        }
-                    }
+                    updateUi(it.data as WeatherResponseModel)
                 }
-                Status.ERROR -> {
-                    showProgress(false)
-                    Toast.makeText(this, it.message, Toast.LENGTH_LONG)
-                        .show()
-                }
-                Status.LOADING -> {
+                is Loading -> {
                     showProgress(true)
+                }
+                is Failer -> {
+                    showProgress(false)
+                    Toast.makeText(this, it.message, Toast.LENGTH_LONG).show()
                 }
             }
         })
     }
 
     @SuppressLint("SetTextI18n")
-    private fun updateUi(it: Resource<WeatherResponseModel>?) {
-        tvTemp.text = it?.data?.main?.temp.toString() + " \u00B0C"
+    private fun updateUi(it: WeatherResponseModel?) {
+        tvTemp.text = it?.main?.temp.toString() + " \u00B0C"
         Picasso.get().load(
             MyConstants.ConfigApi.ICON_URL +
-                    it?.data?.weather?.get(0)?.icon + "@4x.png"
+                    it?.weather?.get(0)?.icon + "@4x.png"
         ).into(ivIocn)
-        searchView?.setQuery(it?.data?.name, false)
+        searchView?.setQuery(it?.name, false)
     }
 
     private fun showProgress(status: Boolean) {
@@ -142,7 +172,7 @@ class MainActivity : AppCompatActivity() {
 
         val task = LocationServices.getSettingsClient(this).checkLocationSettings(builder.build())
 
-        task.addOnSuccessListener { locationSettingsResponse ->
+        task.addOnSuccessListener {
             // All location settings are satisfied. The client can initialize
             // location requests here.
             // ...

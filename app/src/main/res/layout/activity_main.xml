@@ -28,5 +28,19 @@
             android:textColor="@color/cardview_dark_background"
             android:textSize="26sp"
             android:textStyle="bold" />
+
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvTemp2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginStart="16dp"
+        android:gravity="center"
+        android:textColor="@color/cardview_dark_background"
+        android:textSize="26sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
 </androidx.constraintlayout.widget.ConstraintLayout>
