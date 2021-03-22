@@ -1,4 +1,4 @@
-package com.aosama.weatherapp.ViewModels
+package com.aosama.weatherapp.viewModels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

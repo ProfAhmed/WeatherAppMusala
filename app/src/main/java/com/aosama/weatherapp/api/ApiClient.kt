@@ -10,7 +10,7 @@ import retrofit2.converter.gson.GsonConverterFactory
 object ApiClient {
 
     // please add your own url
-    var BASE_URL: String = MyConstants.ConfigApi.BASE_URL
+    private var BASE_URL: String = MyConstants.ConfigApi.BASE_URL
 
     fun apiClient(): Retrofit {
 

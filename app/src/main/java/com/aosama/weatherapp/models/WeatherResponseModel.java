@@ -12,9 +12,6 @@ public class WeatherResponseModel {
     @SerializedName("main")
     @Expose
     public MainModel main;
-    @SerializedName("cod")
-    @Expose
-    public String cod;
     @SerializedName("name")
     @Expose
     public String name;
