@@ -26,14 +26,14 @@ import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import com.squareup.picasso.Picasso
 import kotlinx.android.synthetic.main.activity_main.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import timber.log.Timber
 import java.util.*
 
+// locationRequest properties
+private const val INTERVAL: Long = 500 * 900000
+private const val FASTEST_INTERVAL: Long = 500 * 900000
 
 class MainActivity : AppCompatActivity() {
     private lateinit var locationRequest: LocationRequest
@@ -42,40 +42,38 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_CODE_LOCATION_PERMISSION: Int = 1
     private var searchView: SearchView? = null
     private lateinit var viewModel: MainViewModel
-    private lateinit var dialog: Dialog
     private lateinit var fusedLocationClient: FusedLocationProviderClient
-    private lateinit var locationCallback: LocationCallback
+    private var locationCallback: LocationCallback = object : LocationCallback() {
+        @SuppressLint("TimberArgCount")
+        override fun onLocationResult(locationResult: LocationResult?) {
+            locationResult ?: return
+            locationResult.lastLocation
+            getTempAPi(
+                lat = locationResult.lastLocation.latitude.toString(),
+                lon = locationResult.lastLocation.longitude.toString()
+            )
+            for (location in locationResult.locations) {
+                Timber.i("New Last Location", location.toString())
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        setupViewModel()
-        dialog = MyUtils.getDlgProgress(this)!!
+        initViewModel()
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 //init location result
         locationRequest = LocationRequest.create()
         locationRequest.priority = LocationRequest.PRIORITY_LOW_POWER
-        locationRequest.interval = 500 * 900000
-        locationRequest.fastestInterval = 100000000 / 2
+        locationRequest.interval = INTERVAL
+        locationRequest.fastestInterval = FASTEST_INTERVAL
 //init location callback
-        locationCallback = object : LocationCallback() {
-            @SuppressLint("TimberArgCount")
-            override fun onLocationResult(locationResult: LocationResult?) {
-                locationResult ?: return
-                locationResult.lastLocation
-                getTempAPi(
-                    lat = locationResult.lastLocation.latitude.toString(),
-                    lon = locationResult.lastLocation.longitude.toString()
-                )
-                for (location in locationResult.locations) {
-                    Timber.i("New Last Location", location.toString())
-                }
-            }
-        }
+
         requestPermission()
     }
 
-    private fun setupViewModel() {
+    private fun initViewModel() {
         viewModel = ViewModelProviders.of(
             this,
             ViewModelFactory(ApiClient.apiClient().create(ApiService::class.java))
@@ -89,22 +87,29 @@ class MainActivity : AppCompatActivity() {
         map["appid"] = MyConstants.ConfigApi.WEATHER_API_KEY
         map["lat"] = lat
         map["lon"] = lon
-        map["q"] = q
+        map["q"] = q // city name
         map["units"] = "metric"
 
-        GlobalScope.launch {
+        //flow must run in Coroutine scope
+        //run this Coroutine in IO scope because it is complex job
+        CoroutineScope(Dispatchers.IO).launch {
+            //call collect function to collect every emit data
             viewModel.getCurrentWeatherFlow(map).collect { value ->
+                //run with main context to access views in main activity
                 withContext(Dispatchers.Main) {
                     when (value) {
                         is Success<*> -> {
-                            showProgress(false)
+                            //dismiss progress dialog
+                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
                             updateUi(value.data as WeatherResponseModel)
                         }
                         is Loading -> {
-                            showProgress(true)
+                            //show progress dialog
+                            MyProgressDialog.getDlgProgress(true, this@MainActivity)
                         }
                         is Failed -> {
-                            showProgress(false)
+                            //dismiss progress dialog
+                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
                             Toast.makeText(this@MainActivity, value.message, Toast.LENGTH_LONG)
                                 .show()
                         }
@@ -122,13 +127,6 @@ class MainActivity : AppCompatActivity() {
                     it?.weather?.get(0)?.icon + "@4x.png"
         ).into(ivIocn)
         searchView?.setQuery(it?.name, false)
-    }
-
-    private fun showProgress(status: Boolean) {
-        if (status)
-            dialog.show()
-        else
-            dialog.dismiss()
     }
 
     @SuppressLint("MissingPermission", "TimberArgCount")
