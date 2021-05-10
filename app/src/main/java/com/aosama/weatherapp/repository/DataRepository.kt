@@ -1,12 +1,17 @@
 package com.aosama.weatherapp.repository
 
+import androidx.lifecycle.liveData
 import com.aosama.weatherapp.api.ApiService
 import com.aosama.weatherapp.models.ApiErrorModel
 import com.aosama.weatherapp.utils.Failed
 import com.aosama.weatherapp.utils.Loading
+import com.aosama.weatherapp.utils.SealedResource
 import com.aosama.weatherapp.utils.Success
 import com.google.gson.Gson
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.flow.flow
+import okhttp3.Dispatcher
 import org.json.JSONTokener
 import retrofit2.HttpException
 import java.util.HashMap
@@ -25,7 +30,7 @@ class DataRepository private constructor(private val apiService: ApiService) {
             instance ?: DataRepository(apiService).also { instance = it }
     }
 
-    fun getCurrentWeatherFlow(data: HashMap<String, String>) = flow {
+    fun getCurrentWeatherFlow(data: HashMap<String, String>) = liveData(Dispatchers.IO) {
         emit(Loading)
         try {
             emit(Success(data = apiService.getCurrentWeather(data)))

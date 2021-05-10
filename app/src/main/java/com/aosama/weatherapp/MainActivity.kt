@@ -15,7 +15,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SearchView
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProviders
+import androidx.lifecycle.observe
 import com.aosama.weatherapp.viewModels.MainViewModel
 import com.aosama.weatherapp.viewModels.ViewModelFactory
 import com.aosama.weatherapp.api.ApiClient
@@ -31,7 +33,7 @@ import kotlinx.coroutines.flow.collect
 import timber.log.Timber
 import java.util.*
 
-// locationRequest properties
+// locationRequest properties init
 private const val INTERVAL: Long = 500 * 900000
 private const val FASTEST_INTERVAL: Long = 500 * 900000
 
@@ -92,31 +94,51 @@ class MainActivity : AppCompatActivity() {
 
         //flow must run in Coroutine scope
         //run this Coroutine in IO scope because it is complex job
-        CoroutineScope(Dispatchers.IO).launch {
-            //call collect function to collect every emit data
-            viewModel.getCurrentWeatherFlow(map).collect { value ->
-                //run with main context to access views in main activity
-                withContext(Dispatchers.Main) {
-                    when (value) {
-                        is Success<*> -> {
-                            //dismiss progress dialog
-                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
-                            updateUi(value.data as WeatherResponseModel)
-                        }
-                        is Loading -> {
-                            //show progress dialog
-                            MyProgressDialog.getDlgProgress(true, this@MainActivity)
-                        }
-                        is Failed -> {
-                            //dismiss progress dialog
-                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
-                            Toast.makeText(this@MainActivity, value.message, Toast.LENGTH_LONG)
-                                .show()
-                        }
-                    }
+        viewModel.getCurrentWeatherFlow(map).observe(this, Observer {
+            when (it) {
+                is Success<*> -> {
+                    //dismiss progress dialog
+                    MyProgressDialog.getDlgProgress(false, this@MainActivity)
+                    updateUi(it.data as WeatherResponseModel)
+                }
+                is Loading -> {
+                    //show progress dialog
+                    MyProgressDialog.getDlgProgress(true, this@MainActivity)
+                }
+                is Failed -> {
+                    //dismiss progress dialog
+                    MyProgressDialog.getDlgProgress(false, this@MainActivity)
+                    Toast.makeText(this@MainActivity, it.message, Toast.LENGTH_LONG)
+                        .show()
                 }
             }
-        }
+        })
+
+//        CoroutineScope(Dispatchers.IO).launch {
+//            //call collect function to collect every emit data
+//            viewModel.getCurrentWeatherFlow(map).collect { value ->
+//                //run with main context to access views in main activity
+//                withContext(Dispatchers.Main) {
+//                    when (value) {
+//                        is Success<*> -> {
+//                            //dismiss progress dialog
+//                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
+//                            updateUi(value.data as WeatherResponseModel)
+//                        }
+//                        is Loading -> {
+//                            //show progress dialog
+//                            MyProgressDialog.getDlgProgress(true, this@MainActivity)
+//                        }
+//                        is Failed -> {
+//                            //dismiss progress dialog
+//                            MyProgressDialog.getDlgProgress(false, this@MainActivity)
+//                            Toast.makeText(this@MainActivity, value.message, Toast.LENGTH_LONG)
+//                                .show()
+//                        }
+//                    }
+//                }
+//            }
+//        }
     }
 
     @SuppressLint("SetTextI18n")
